@@ -12,6 +12,7 @@
 #include <string>
 #include <system_error>
 #include <thread>
+#include <utility>
 
 namespace
 {
@@ -29,48 +30,58 @@ class process_handler : // public boost::process::extend::handler,
 {
 public:
 
+    process_handler(std::string name)
+            : name_(std::move(name))
+    {
+
+    }
+
+    process_handler(const process_handler&) = delete;
+
+    process_handler(process_handler&&) = delete;
+
     template<typename Executor>
     void on_setup(Executor& exec)
     {
         auto &ios = boost::process::extend::get_io_context(exec.seq);
         boost::asio::post(ios.get_executor(),
-        []()
+        [name = this->name_]()
         {
-            std::cout << "on setup." << std::endl;
+            std::cout << name << " on setup." << std::endl;
         });
     }
 
     template<typename Executor>
-    void on_error(Executor &exec, const std::error_code& ec)
+    void on_error(Executor& exec, const std::error_code& ec)
     {
         auto &ios = boost::process::extend::get_io_context(exec.seq);
         boost::asio::post(ios.get_executor(),
-        [ec]()
+        [ec, name = this->name_]()
         {
-            std::cout << "on start error."
+            std::cout << name << " on start error."
                     << " ec.message: " << ec.message() << std::endl;
         });
     }
 
     template<typename Executor>
-    void on_success(Executor & exec)
+    void on_success(Executor& exec)
     {
         auto &ios = boost::process::extend::get_io_context(exec.seq);
         boost::asio::post(ios.get_executor(),
-        []()
+        [name = this->name_]()
         {
-            std::cout << "on start success." << std::endl;
+            std::cout << name << " on start success." << std::endl;
         });
     }
 
-
     template<typename Executor>
-    std::function<void(int, const std::error_code&)> on_exit_handler(Executor & exec)
+    std::function<void(int, const std::error_code&)> on_exit_handler(Executor& exec)
     {
         auto &ios = boost::process::extend::get_io_context(exec.seq);
-        return [&ios](int exit_code, const std::error_code & ec)
+
+        return [&ios, name = this->name_](int exit_code, const std::error_code& ec)
                {
-                    std::cout << "exit code: " << exit_code << " ec.message:" << ec.message() << std::endl;
+                    std::cout << name << " exit code: " << exit_code << " ec.message:" << ec.message() << std::endl;
                     boost::asio::post(ios.get_executor(),
                     []()
                     {
@@ -79,6 +90,15 @@ public:
                };
 
     }
+
+    process_handler& operator=(const process_handler&) = delete;
+
+    process_handler& operator=(process_handler&&) = delete;
+
+private:
+
+    std::string name_;
+
 };
 
 } // namespace
@@ -103,7 +123,7 @@ int main(int argc, char** argv) {
             boost::process::std_out > stdout,
             boost::process::std_err > stderr,
             ioContext,
-            process_handler());
+            process_handler(executablePath.string()));
 
     std::thread ioLoop([&ioContext](){ ioContext.run(); });
 
