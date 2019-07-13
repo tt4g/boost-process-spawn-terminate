@@ -141,7 +141,9 @@ int main(int argc, char** argv) {
         std::error_code terminateEc;
         targetProcess.terminate(terminateEc);
 
-        if (terminateEc) {
+        // Check operator bool() and value() == 0,
+        // terminateEc.value() == 0 but operator bool() returns false on Windows.
+        if (terminateEc || terminateEc.value() == 0) {
             std::cout << executablePath.filename() << " terminate." << "\n";
         } else {
             std::cout << executablePath.filename() << " terminate failure."
