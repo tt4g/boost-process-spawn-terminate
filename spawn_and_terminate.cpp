@@ -129,15 +129,17 @@ int main(int argc, char** argv) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
-    std::error_code ec;
-    if (targetProcess.wait_for(std::chrono::milliseconds(500), ec)) {
+    std::error_code waitForEc;
+    const bool alreadyExit =
+            targetProcess.wait_for(std::chrono::milliseconds(500), waitForEc);
+    if (waitForEc) {
+        std::cout << "wait for process exit failure."
+                << "ec.message: " << waitForEc.message() << "\n";
+    }
+
+    if (alreadyExit) {
         std::cout << executablePath.filename() << " is already exit." << "\n";
     } else {
-        if (ec) {
-            std::cout << "wait for process exit failure."
-                    << "ec.message: " << ec.message() << "\n";
-        }
-
         std::error_code terminateEc;
         targetProcess.terminate(terminateEc);
 
